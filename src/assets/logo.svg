@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 96" role="img" aria-labelledby="logoTitle logoDesc">
+  <title id="logoTitle">SiamVoyage Logo</title>
+  <desc id="logoDesc">A travel brand logo with a stylized boat icon and SiamVoyage wordmark.</desc>
+  <defs>
+    <linearGradient id="logoOrange" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FF9A3D" />
+      <stop offset="100%" stop-color="#FF6A00" />
+    </linearGradient>
+    <linearGradient id="logoBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0B1F3A" />
+      <stop offset="100%" stop-color="#123E7A" />
+    </linearGradient>
+  </defs>
+  <g transform="translate(12 12)">
+    <circle cx="24" cy="24" r="24" fill="url(#logoBlue)" opacity="0.95" />
+    <path d="M10 28c12 0 18-8 28-8 0 0 4 0 6 3 2 3 2 8-2 10-4 2-10 4-12 6-2 2-1 6-1 6s-18 0-26-9 7-8 7-8Z" fill="url(#logoOrange)" />
+    <path d="M14 24c6-2 8-6 14-6 0 0 1 4-4 6-4 2-8 0-10 2-2 2 0-2 0-2Z" fill="#FFF" opacity="0.8" />
+  </g>
+  <text x="72" y="40" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="700" fill="url(#logoOrange)">Siam</text>
+  <text x="72" y="72" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="700" fill="url(#logoBlue)">Voyage</text>
+</svg>

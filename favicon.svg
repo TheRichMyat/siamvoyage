@@ -1,0 +1,40 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="orangeGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FF9A3D"/>
+      <stop offset="100%" stop-color="#FF6A00"/>
+    </linearGradient>
+    <linearGradient id="blueGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0B1F3A"/>
+      <stop offset="100%" stop-color="#123E7A"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#blueGradient)"/>
+
+  <!-- Sun -->
+  <circle cx="355" cy="180" r="45" fill="url(#orangeGradient)" opacity="0.9"/>
+
+  <!-- Temple -->
+  <path d="M190 300L256 170L322 300H295L256 225L217 300H190Z" fill="#FFD28A"/>
+  <rect x="228" y="300" width="56" height="90" rx="6" fill="#FFE7B8"/>
+  <path d="M205 300H307L325 330H187L205 300Z" fill="#FFB14A"/>
+
+  <!-- Boat -->
+  <path d="M120 340C155 360 220 365 290 350C250 390 165 398 120 340Z" fill="url(#orangeGradient)"/>
+  <path d="M150 330L220 320L200 345L140 348L150 330Z" fill="#FFF4E3"/>
+
+  <!-- Palm Tree -->
+  <rect x="120" y="190" width="10" height="90" rx="5" transform="rotate(-15 120 190)" fill="#8B5A2B"/>
+  <path d="M118 180C90 165 78 140 82 115C108 130 118 148 118 180Z" fill="#38B46A"/>
+  <path d="M122 178C148 160 168 150 190 158C170 178 148 188 122 178Z" fill="#45C978"/>
+  <path d="M120 182C140 195 150 215 146 238C126 225 116 205 120 182Z" fill="#2FA85C"/>
+
+  <!-- Waves -->
+  <path d="M90 390C130 375 170 375 210 390C250 405 290 405 330 390C370 375 410 375 450 390"
+        stroke="#9ED9FF" stroke-width="10" stroke-linecap="round" opacity="0.8"/>
+
+  <!-- Decorative Dot -->
+  <circle cx="256" cy="100" r="10" fill="#FFD28A"/>
+</svg>
