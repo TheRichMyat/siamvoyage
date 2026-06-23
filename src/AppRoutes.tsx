@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import App from './App';
+import App, { TourDetailPage } from './App';
 import { ProtectedRoute } from './office/ProtectedRoute';
 import { OfficeLayout } from './office/OfficeLayout';
 import { OfficeLogin } from './office/OfficeLogin';
@@ -12,6 +12,7 @@ export function AppRoutes() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<App />} />
+        <Route path="/tour/:tourSlug" element={<TourDetailPage />} />
         <Route path="/office/login" element={<OfficeLogin />} />
         <Route
           path="/office"

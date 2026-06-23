@@ -347,6 +347,24 @@ function emailQrImageUrl_(bookingId) {
   return 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(data);
 }
 
+function packagePrice_(pkg) {
+  var prices = {
+    'Phi Phi Island Escape': 6900,
+    'Bangkok Cultural Journey': 2900,
+    'Chiang Mai Mountain Retreat': 8500,
+    'Krabi Beach Paradise': 11900,
+    'Ayutthaya Historic Tour': 2500,
+    'Koh Samui Luxury Getaway': 24900,
+    'Hua Hin Royal Seaside': 9500,
+    'Koh Phangan Full Moon Escape': 10900
+  };
+  return prices[pkg] || 0;
+}
+
+function formatBaht_(amount) {
+  return '฿' + (Number(amount) || 0).toLocaleString('en-US');
+}
+
 function sendVoucherEmail_(booking) {
   MailApp.sendEmail({
     to: booking.email,
@@ -363,56 +381,85 @@ function buildVoucherHtml_(booking) {
   var travelDate = escapeHtml_(formatTravelDate_(booking.travelDate));
   var guests = escapeHtml_(guestCountLabel_(booking.guestCount));
   var qrUrl = escapeHtml_(emailQrImageUrl_(booking.bookingId));
+  var pricePerPerson = packagePrice_(booking.package);
+  var total = pricePerPerson * (Number(booking.guestCount) || 1);
+  var pricePerPersonText = escapeHtml_(formatBaht_(pricePerPerson));
+  var totalText = escapeHtml_(formatBaht_(total));
 
   return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
-    '<title>Your Siam Voyage Booking</title></head>' +
-    '<body style="margin:0;padding:0;background-color:#f8fafc;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;padding:24px 12px;">' +
+    '<title>Your Siam Voyage Booking</title>' +
+    '<style>@media only screen and (max-width:620px){.sv-container{width:100%!important}.sv-pad{padding-left:18px!important;padding-right:18px!important}.sv-stack{display:block!important;width:100%!important}.sv-divider{border-left:0!important;border-top:1px dashed #d6c7ad!important}.sv-qr{padding-top:24px!important}.sv-title{font-size:30px!important}.sv-detail{width:100%!important;display:block!important;padding-right:0!important;padding-left:0!important}}</style>' +
+    '</head>' +
+    '<body style="margin:0;padding:0;background-color:#f4efe6;font-family:Arial,Helvetica,sans-serif;color:#172033;">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4efe6;padding:30px 12px;">' +
     '<tr><td align="center">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">' +
-    '<tr><td style="background:linear-gradient(135deg,#ea580c 0%,#2563eb 100%);padding:28px 24px;text-align:center;">' +
-    '<div style="font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.85);font-weight:bold;">Siam Voyage</div>' +
-    '<div style="font-size:28px;line-height:1.2;font-weight:bold;color:#ffffff;margin-top:8px;">Your booking is confirmed</div>' +
+    '<table role="presentation" class="sv-container" width="640" cellpadding="0" cellspacing="0" style="width:640px;max-width:640px;background-color:#ffffff;border-radius:24px;overflow:hidden;border:1px solid #decfb8;box-shadow:0 18px 48px rgba(23,32,51,0.16);">' +
+    '<tr><td class="sv-pad" style="padding:30px 32px 26px;background-color:#111827;background-image:linear-gradient(135deg,#111827 0%,#1f2937 58%,#7c3f16 100%);">' +
+    '<div style="font-size:12px;letter-spacing:0.26em;text-transform:uppercase;color:#f7b267;font-weight:bold;">Siam Voyage</div>' +
+    '<div class="sv-title" style="font-size:36px;line-height:1.1;font-weight:bold;color:#ffffff;margin-top:10px;font-family:Georgia,Times,serif;">Booking Confirmed</div>' +
+    '<div style="font-size:14px;line-height:1.7;color:#e5e7eb;margin-top:12px;max-width:520px;">Your premium Thailand travel voucher is ready. Present the check-in code inside this ticket when you meet our team.</div>' +
     '</td></tr>' +
-    '<tr><td style="padding:28px 24px 8px;font-size:16px;line-height:1.6;color:#334155;">' +
-    'Hi ' + name + ',<br><br>Thank you for booking with Siam Voyage. Your adventure details are below.' +
-    '</td></tr>' +
-    '<tr><td style="padding:8px 24px 24px;">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #f1f5f9;border-radius:12px;overflow:hidden;">' +
-    '<tr><td style="padding:16px 18px;background-color:#fff7ed;border-bottom:1px solid #f1f5f9;">' +
-    '<div style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#94a3b8;font-weight:bold;">Booking Reference</div>' +
-    '<div style="font-size:20px;font-weight:bold;color:#0f172a;font-family:Consolas,Monaco,monospace;letter-spacing:0.05em;margin-top:4px;">' + bookingId + '</div>' +
-    '</td></tr>' +
-    '<tr><td style="padding:16px 18px;border-bottom:1px solid #f1f5f9;">' +
-    '<div style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#94a3b8;font-weight:bold;">Package</div>' +
-    '<div style="font-size:16px;font-weight:bold;color:#0f172a;margin-top:4px;">' + pkg + '</div>' +
-    '</td></tr>' +
-    '<tr><td style="padding:16px 18px;">' +
+    '<tr><td class="sv-pad" style="padding:28px 28px 10px;background-color:#ffffff;">' +
+    '<div style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#b45309;font-weight:bold;">Travel Voucher Card</div>' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:14px;border:1px solid #d9c7ac;border-radius:20px;overflow:hidden;background-color:#fffaf2;">' +
+    '<tr><td colspan="2" style="padding:16px 20px;background-color:#fbf3e4;border-bottom:1px solid #eadcc6;">' +
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
-    '<td width="50%" valign="top" style="padding-right:8px;">' +
-    '<div style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#94a3b8;font-weight:bold;">Travel Date</div>' +
-    '<div style="font-size:14px;font-weight:600;color:#0f172a;margin-top:4px;">' + travelDate + '</div>' +
+    '<td style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#9a6a28;font-weight:bold;">Excursion Voucher</td>' +
+    '<td align="right" style="font-size:12px;color:#6b7280;font-family:Consolas,Monaco,monospace;">' + bookingId + '</td>' +
+    '</tr></table>' +
+    '</td></tr>' +
+    '<tr>' +
+    '<td class="sv-stack" width="68%" valign="top" style="width:68%;padding:24px 24px 22px;background-color:#ffffff;">' +
+    '<div style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#b45309;font-weight:bold;">Booking Information</div>' +
+    '<div style="font-size:22px;line-height:1.25;font-weight:bold;color:#111827;margin-top:8px;font-family:Georgia,Times,serif;">' + pkg + '</div>' +
+    '<div style="font-size:13px;color:#6b7280;margin-top:7px;">Prepared for ' + name + '</div>' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:22px;">' +
+    '<tr>' +
+    '<td class="sv-detail" width="50%" valign="top" style="width:50%;padding:0 12px 16px 0;">' +
+    '<div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#9ca3af;font-weight:bold;">Booking ID</div>' +
+    '<div style="font-size:14px;font-weight:bold;color:#111827;font-family:Consolas,Monaco,monospace;letter-spacing:0.04em;margin-top:5px;">' + bookingId + '</div>' +
     '</td>' +
-    '<td width="50%" valign="top" style="padding-left:8px;">' +
-    '<div style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#94a3b8;font-weight:bold;">Guests</div>' +
-    '<div style="font-size:14px;font-weight:600;color:#0f172a;margin-top:4px;">' + guests + '</div>' +
+    '<td class="sv-detail" width="50%" valign="top" style="width:50%;padding:0 0 16px 12px;">' +
+    '<div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#9ca3af;font-weight:bold;">Guest Name</div>' +
+    '<div style="font-size:14px;font-weight:bold;color:#111827;margin-top:5px;">' + name + '</div>' +
+    '</td></tr>' +
+    '<tr>' +
+    '<td class="sv-detail" width="50%" valign="top" style="width:50%;padding:0 12px 16px 0;">' +
+    '<div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#9ca3af;font-weight:bold;">Travel Date</div>' +
+    '<div style="font-size:14px;font-weight:bold;color:#111827;margin-top:5px;">' + travelDate + '</div>' +
+    '</td>' +
+    '<td class="sv-detail" width="50%" valign="top" style="width:50%;padding:0 0 16px 12px;">' +
+    '<div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#9ca3af;font-weight:bold;">Guest Count</div>' +
+    '<div style="font-size:14px;font-weight:bold;color:#111827;margin-top:5px;">' + guests + '</div>' +
+    '</td></tr>' +
+    '<tr>' +
+    '<td class="sv-detail" width="50%" valign="top" style="width:50%;padding:0 12px 0 0;">' +
+    '<div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#9ca3af;font-weight:bold;">Price Per Person</div>' +
+    '<div style="font-size:15px;font-weight:bold;color:#111827;margin-top:5px;">' + pricePerPersonText + '</div>' +
+    '</td>' +
+    '<td class="sv-detail" width="50%" valign="top" style="width:50%;padding:0 0 0 12px;">' +
+    '<div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#b45309;font-weight:bold;">Total Amount</div>' +
+    '<div style="font-size:20px;font-weight:bold;color:#111827;margin-top:4px;">' + totalText + '</div>' +
     '</td></tr></table>' +
+    '</td>' +
+    '<td class="sv-stack sv-divider sv-qr" width="32%" valign="middle" align="center" style="width:32%;background-color:#182133;border-left:1px dashed #d6c7ad;padding:24px 18px;">' +
+    '<div style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#f7b267;font-weight:bold;margin-bottom:14px;">QR Check-In Voucher</div>' +
+    '<table role="presentation" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:14px;border:1px solid #eadcc6;"><tr><td style="padding:10px;">' +
+    '<img src="' + qrUrl + '" width="138" height="138" alt="Booking QR code" style="display:block;border:0;outline:none;text-decoration:none;" />' +
+    '</td></tr></table>' +
+    '<div style="font-size:13px;color:#ffffff;font-family:Consolas,Monaco,monospace;font-weight:bold;letter-spacing:0.05em;margin-top:13px;">' + bookingId + '</div>' +
+    '<div style="font-size:11px;line-height:1.5;color:#cbd5e1;margin-top:6px;">Show this code to Siam Voyage staff at check-in.</div>' +
     '</td></tr></table>' +
     '</td></tr>' +
-    '<tr><td style="padding:0 24px 24px;" align="center">' +
-    '<table role="presentation" cellpadding="0" cellspacing="0" style="border:2px solid #f1f5f9;border-radius:12px;background-color:#fff;padding:20px;">' +
-    '<tr><td align="center">' +
-    '<div style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#94a3b8;font-weight:bold;margin-bottom:12px;">Check-in QR Code</div>' +
-    '<img src="' + qrUrl + '" width="180" height="180" alt="Booking QR code" style="display:block;border-radius:8px;" />' +
-    '<div style="font-family:Consolas,Monaco,monospace;font-size:14px;font-weight:bold;color:#0f172a;margin-top:12px;letter-spacing:0.05em;">' + bookingId + '</div>' +
-    '</td></tr></table>' +
+    '<tr><td class="sv-pad" style="padding:18px 32px 28px;background-color:#ffffff;">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eee2cf;padding-top:18px;">' +
+    '<tr><td style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#9a6a28;font-weight:bold;padding-bottom:8px;">Contact Information</td></tr>' +
+    '<tr><td style="font-size:14px;line-height:1.7;color:#5b6472;">Our travel team will contact you within 24 hours to confirm pickup details and any special requests. No payment is required right now.<br>Email: hello@siamvoyage.com</td></tr>' +
+    '</table>' +
     '</td></tr>' +
-    '<tr><td style="padding:0 24px 24px;font-size:14px;line-height:1.6;color:#64748b;">' +
-    'Our travel team will contact you within 24 hours to confirm every detail. No payment is required right now.' +
-    '</td></tr>' +
-    '<tr><td style="padding:20px 24px;background-color:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;font-size:12px;line-height:1.6;color:#94a3b8;">' +
-    '&copy; Siam Voyage &middot; Tailored journeys across Thailand' +
+    '<tr><td style="padding:20px 24px;background-color:#0f172a;text-align:center;font-size:12px;line-height:1.6;color:#cbd5e1;">' +
+    '&copy; Siam Voyage &middot; Premium journeys across Thailand' +
     '</td></tr>' +
     '</table></td></tr></table></body></html>';
 }

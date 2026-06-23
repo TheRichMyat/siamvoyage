@@ -1,10 +1,24 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
-import { BookingQrCard } from '../components/BookingQrCard';
 import { flagForCountryCode } from '../data/countries';
 import { fetchBookingById, updateBookingStatus } from '../services/bookingApi';
 import type { BookingStatus, OfficeBooking } from '../types/booking';
+
+const TOUR_PRICES: Record<string, number> = {
+  'Phi Phi Island Escape': 6900,
+  'Bangkok Cultural Journey': 2900,
+  'Chiang Mai Mountain Retreat': 8500,
+  'Krabi Beach Paradise': 11900,
+  'Ayutthaya Historic Tour': 2500,
+  'Koh Samui Luxury Getaway': 24900,
+  'Hua Hin Royal Seaside': 9500,
+  'Koh Phangan Full Moon Escape': 10900
+};
+
+function formatBaht(amount: number): string {
+  return `฿${amount.toLocaleString('en-US')}`;
+}
 
 function StatusBadge({ status }: { status: BookingStatus }) {
   const styles = {
@@ -133,13 +147,17 @@ export function OfficeBookingDetail() {
     );
   }
 
+  const pricePerPerson = TOUR_PRICES[booking.package] || 0;
   const details = [
+    { label: 'Booking ID', value: booking.bookingId },
     { label: 'Email', value: booking.email },
     { label: 'Phone', value: booking.phone },
     { label: 'Country', value: `${flagForCountryCode(booking.countryCode)} ${booking.country}` },
     { label: 'Package', value: booking.package },
     { label: 'Travel Date', value: formatDate(booking.travelDate) },
     { label: 'Guests', value: String(booking.guestCount) },
+    { label: 'Price Per Person', value: formatBaht(pricePerPerson) },
+    { label: 'Total Amount', value: formatBaht(pricePerPerson * booking.guestCount) },
     { label: 'Created', value: formatDateTime(booking.createdAt) },
     { label: 'Notes', value: booking.notes || '—' }
   ];
@@ -207,10 +225,6 @@ export function OfficeBookingDetail() {
               </button>
             )}
           </div>
-        </div>
-
-        <div className="shrink-0 lg:w-72">
-          <BookingQrCard bookingId={booking.bookingId} />
         </div>
       </div>
 

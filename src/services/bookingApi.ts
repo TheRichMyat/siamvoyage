@@ -63,7 +63,7 @@ async function parseJsonResponse<T>(res: Response): Promise<T> {
       : 'Booking request failed';
     throw new Error(message);
   }
-  if (typeof data === 'object' && data && 'error' in data && !(data as SheetBooking).bookingId) {
+  if (typeof data === 'object' && data && 'error' in data && !('bookingId' in data)) {
     throw new Error(String((data as { error: string }).error));
   }
   return data as T;

@@ -4,7 +4,9 @@
  */
 
 import React, { useState, useEffect, useRef, type ReactNode } from 'react';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence, useAnimation, type Transition } from 'motion/react';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   MapPin,
   Star,
@@ -38,7 +40,7 @@ import { COUNTRIES } from './data/countries';
 import { useBookings } from './hooks/useBookings';
 import { slugifyPackage } from './services/bookingApi';
 import type { Booking, CreateBookingPayload } from './types/booking';
-import { BookingQrCard } from './components/BookingQrCard';
+import { getBookingCheckInUrl } from './lib/bookingQr';
 
 const DESTINATIONS = [
   'Bangkok', 'Phuket', 'Chiang Mai', 'Krabi', 'Pattaya', 'Koh Samui',
@@ -71,6 +73,9 @@ type TourInfo = {
   description: string;
   highlights: string[];
   includes: string[];
+  excluded?: string[];
+  itinerary?: string[];
+  gallery?: string[];
 };
 
 const TOUR_CATALOG: TourInfo[] = [
@@ -189,6 +194,36 @@ const TOUR_CATALOG: TourInfo[] = [
 ];
 
 const TOURS = TOUR_CATALOG.map(t => t.name);
+
+const parseTourPrice = (price: string): number => parseInt(price.replace(/[^\d]/g, ''), 10) || 0;
+
+const formatBaht = (amount: number): string => `฿${amount.toLocaleString('en-US')}`;
+
+const tourPrice = (tour: TourInfo): number => parseTourPrice(tour.price);
+
+const findTourByName = (name: string): TourInfo | undefined => TOUR_CATALOG.find(t => t.name === name);
+
+const findTourBySlug = (slug?: string): TourInfo | undefined =>
+  TOUR_CATALOG.find(t => slugifyPackage(t.name) === slug);
+
+const tourGallery = (tour: TourInfo): string[] => tour.gallery ?? [
+  tour.img,
+  'https://images.pexels.com/photos/2161449/pexels-photo-2161449.jpeg',
+  'https://images.unsplash.com/photo-1508009603885-50cf7c579365?auto=format&fit=crop&q=80&w=1000'
+];
+
+const tourExcluded = (tour: TourInfo): string[] => tour.excluded ?? [
+  'International flights',
+  'Personal expenses',
+  'Travel insurance',
+  'Optional activities not listed'
+];
+
+const tourItinerary = (tour: TourInfo): string[] => tour.itinerary ?? [
+  `Meet your Siam Voyage host and begin ${tour.name}.`,
+  'Enjoy the curated highlights with time for photos and local discoveries.',
+  'Return with assistance from your guide and onward travel support.'
+];
 
 // ─── Car Rental ──────────────────────────────────────────────────────────────
 type CarInfo = {
@@ -923,7 +958,7 @@ const Services = () => {
   );
 };
 
-const TourPackages = ({ onBookTour, highlightedTour }: { onBookTour: (tourName: string) => void; highlightedTour?: string | null }) => {
+const TourPackages = ({ highlightedTour }: { highlightedTour?: string | null }) => {
   const packages = [
     { title: "Phi Phi Island Escape", duration: "2 Days / 1 Night", desc: "Swim, relax, and explore Thailand's most famous islands.", price: "฿12,000 → ฿6,900", badge: "LIMITED OFFER", img: "https://images.pexels.com/photos/176400/pexels-photo-176400.jpeg" },
     { title: "Bangkok Cultural Journey", duration: "1 Day", desc: "Temples, street food, and hidden city gems.", price: "฿5,000 → ฿2,900", badge: "PROMOTION", img: "https://images.unsplash.com/photo-1563492065599-3520f775eeed?auto=format&fit=crop&q=80&w=800" },
@@ -987,13 +1022,13 @@ const TourPackages = ({ onBookTour, highlightedTour }: { onBookTour: (tourName: 
                       {p.price.split(' → ')[1]}
                     </span>
                   </div>
-                  <button
-                    onClick={() => onBookTour(p.title)}
+                  <Link
+                    to={`/tour/${slugifyPackage(p.title)}`}
                     aria-label={`Book ${p.title}`}
                     className="bg-slate-900 text-white p-2.5 rounded-xl hover:bg-sunset transition-colors flex items-center gap-1.5 text-xs font-semibold px-3"
                   >
                     Book <ArrowRight size={14} />
-                  </button>
+                  </Link>
                 </div>
               </div>
             </motion.div>
@@ -1603,6 +1638,8 @@ const BookingSuccess = ({
   const formattedDate = booking.startDate
     ? new Date(booking.startDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
     : 'Flexible';
+  const pricePerPerson = tourPrice(tour);
+  const total = pricePerPerson * booking.travelers;
 
   return (
     <div className="relative overflow-hidden">
@@ -1657,21 +1694,21 @@ const BookingSuccess = ({
           <p className="text-slate-500">Booking secured — your adventure starts here.</p>
         </motion.div>
 
-        {/* Reference card */}
+        {/* Travel voucher */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="bg-white rounded-2xl border-2 border-slate-100 shadow-sm overflow-hidden mb-6"
+          className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden mb-6"
         >
-          <div className="flex flex-col sm:flex-row">
-            <div className="h-36 sm:h-auto sm:w-28 shrink-0 relative sm:min-h-[8rem]">
+          <div className="grid sm:grid-cols-[150px_1fr_170px]">
+            <div className="h-40 sm:h-auto relative">
               <img src={tour.img} alt={tour.name} className="h-full w-full object-cover sm:absolute sm:inset-0" referrerPolicy="no-referrer" />
             </div>
-            <div className="flex-1 p-4 sm:p-5">
+            <div className="p-5 sm:border-r border-dashed border-slate-200">
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div>
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">Reference</div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-sunset mb-0.5">Siam Voyage Voucher</div>
                   <div className="font-mono font-bold text-slate-900 tracking-wider">{reference}</div>
                 </div>
                 <button
@@ -1688,18 +1725,25 @@ const BookingSuccess = ({
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
                 <span className="flex items-center gap-1"><Users size={12} /> {booking.travelers} {booking.travelers === 1 ? 'guest' : 'guests'}</span>
               </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                <div className="rounded-xl bg-slate-50 p-3">
+                  <div className="font-bold uppercase tracking-widest text-slate-400 text-[9px]">Per Person</div>
+                  <div className="mt-1 font-bold text-slate-900">{formatBaht(pricePerPerson)}</div>
+                </div>
+                <div className="rounded-xl bg-sunset/10 p-3">
+                  <div className="font-bold uppercase tracking-widest text-sunset text-[9px]">Total</div>
+                  <div className="mt-1 font-bold text-slate-900">{formatBaht(total)}</div>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col items-center justify-center bg-tropical-bg p-5 text-center">
+              <div className="rounded-xl bg-white p-3 shadow-inner border border-slate-100">
+                <QRCodeSVG value={getBookingCheckInUrl(reference)} size={116} level="M" includeMargin={false} fgColor="#0f172a" bgColor="#ffffff" />
+              </div>
+              <div className="mt-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Check-in QR</div>
+              <div className="mt-1 text-xs text-slate-500">Present this voucher to staff</div>
             </div>
           </div>
-        </motion.div>
-
-        {/* QR check-in */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45 }}
-          className="mb-6 flex justify-center"
-        >
-          <BookingQrCard bookingId={reference} />
         </motion.div>
 
         {/* What's next timeline */}
@@ -1759,6 +1803,309 @@ const BookingSuccess = ({
 };
 
 // ─── Live Bookings Section ───────────────────────────────────────────────────
+type TourBookingFormState = {
+  name: string;
+  email: string;
+  phone: string;
+  country: string;
+  startDate: string;
+  travelers: string;
+  notes: string;
+};
+
+const TourBookingPanel = ({ tour }: { tour: TourInfo }) => {
+  const navigate = useNavigate();
+  const { addBooking } = useBookings();
+  const [stage, setStage] = useState<'form' | 'review' | 'success'>('form');
+  const [form, setForm] = useState<TourBookingFormState>({
+    name: '',
+    email: '',
+    phone: '',
+    country: 'United Kingdom',
+    startDate: '',
+    travelers: '2',
+    notes: ''
+  });
+  const [confirmation, setConfirmation] = useState<{ booking: Booking; ref: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const guests = parseInt(form.travelers, 10) || 1;
+  const pricePerPerson = tourPrice(tour);
+  const total = pricePerPerson * guests;
+  const country = COUNTRIES.find(c => c.name === form.country) || COUNTRIES[0];
+  const formattedDate = form.startDate
+    ? new Date(form.startDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+    : '';
+
+  const update = (k: keyof TourBookingFormState, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+  const buildPayload = (): CreateBookingPayload => ({
+    name: form.name.trim(),
+    email: form.email.trim(),
+    phone: form.phone.trim(),
+    country: country.name,
+    countryCode: country.code,
+    package: tour.name,
+    packageSlug: slugifyPackage(tour.name),
+    travelDate: form.startDate,
+    guestCount: guests,
+    notes: form.notes.trim()
+  });
+
+  const confirmBooking = async () => {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const result = await addBooking(buildPayload());
+      setConfirmation({ booking: result.booking, ref: result.bookingId });
+      setStage('success');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Booking failed. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const copyRef = async () => {
+    if (!confirmation) return;
+    try {
+      await navigator.clipboard.writeText(confirmation.ref);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch { /* ignore */ }
+  };
+
+  if (stage === 'success' && confirmation) {
+    return (
+      <div className="rounded-2xl bg-white shadow-xl border border-slate-100 overflow-hidden">
+        <BookingSuccess booking={confirmation.booking} reference={confirmation.ref} tour={tour} copied={copied} onCopy={copyRef} onClose={() => navigate('/')} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl bg-white shadow-xl border border-slate-100 overflow-hidden">
+      <div className="bg-slate-950 text-white p-6">
+        <div className="text-[10px] font-bold uppercase tracking-widest text-sunset mb-2">Reserve this tour</div>
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <div className="text-3xl font-serif font-bold">{tour.price}</div>
+            <div className="text-sm text-white/60">per person</div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs text-white/50">Estimated total</div>
+            <div className="text-2xl font-bold text-sunset">{formatBaht(total)}</div>
+          </div>
+        </div>
+      </div>
+
+      {stage === 'form' && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setSubmitError(null);
+            setStage('review');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className="p-6 space-y-4"
+        >
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">Full Name</label>
+              <input required value={form.name} onChange={(e) => update('name', e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-sunset focus:ring-2 focus:ring-sunset/20 outline-none" placeholder="Jane Doe" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">Country</label>
+              <select value={form.country} onChange={(e) => update('country', e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-sunset focus:ring-2 focus:ring-sunset/20 outline-none bg-white">
+                {COUNTRIES.map(c => <option key={c.name} value={c.name}>{c.flag} {c.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">Email</label>
+              <input type="email" required value={form.email} onChange={(e) => update('email', e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-sunset focus:ring-2 focus:ring-sunset/20 outline-none" placeholder="jane@example.com" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">Phone</label>
+              <input type="tel" required value={form.phone} onChange={(e) => update('phone', e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-sunset focus:ring-2 focus:ring-sunset/20 outline-none" placeholder="+44 7700 900000" />
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">Travel Date</label>
+              <input type="date" required value={form.startDate} onChange={(e) => update('startDate', e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-sunset focus:ring-2 focus:ring-sunset/20 outline-none" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">Guests</label>
+              <select value={form.travelers} onChange={(e) => update('travelers', e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-sunset focus:ring-2 focus:ring-sunset/20 outline-none bg-white">
+                {[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{n} {n === 1 ? 'guest' : 'guests'}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">Special Requests (optional)</label>
+            <textarea rows={3} value={form.notes} onChange={(e) => update('notes', e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-sunset focus:ring-2 focus:ring-sunset/20 outline-none resize-none" placeholder="Dietary needs, accessibility, anniversary surprise..." />
+          </div>
+          <button type="submit" className="w-full bg-sunset hover:bg-orange-600 text-white py-4 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-sunset/25">
+            Review Booking <ArrowRight size={20} />
+          </button>
+          <p className="text-xs text-center text-slate-400">No payment required now. Review your details before confirmation.</p>
+        </form>
+      )}
+
+      {stage === 'review' && (
+        <div className="p-6">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">Review booking</div>
+          <div className="divide-y divide-slate-100 rounded-2xl border border-slate-100 overflow-hidden mb-5">
+            {[
+              ['Package', tour.name],
+              ['Travel Date', formattedDate],
+              ['Guest Count', `${guests}`],
+              ['Price Per Person', formatBaht(pricePerPerson)],
+              ['Total Amount', formatBaht(total)],
+              ['Customer', form.name],
+              ['Email', form.email],
+              ['Phone', form.phone],
+              ['Country', `${country.flag} ${country.name}`],
+              ['Notes', form.notes || '-']
+            ].map(([label, value]) => (
+              <div key={label} className="grid grid-cols-[130px_1fr] gap-3 px-4 py-3 text-sm">
+                <div className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">{label}</div>
+                <div className="font-medium text-slate-800">{value}</div>
+              </div>
+            ))}
+          </div>
+          {submitError && <p className="text-sm text-red-600 mb-4">{submitError}</p>}
+          <div className="grid sm:grid-cols-2 gap-3">
+            <button type="button" onClick={() => setStage('form')} className="py-3.5 rounded-xl font-bold border border-slate-200 text-slate-700 hover:bg-slate-50">Back</button>
+            <button type="button" disabled={submitting} onClick={confirmBooking} className="py-3.5 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white">
+              {submitting ? 'Creating booking...' : 'Confirm Booking'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export function TourDetailPage() {
+  const { tourSlug } = useParams<{ tourSlug: string }>();
+  const tour = findTourBySlug(tourSlug);
+
+  if (!tour) return <Navigate to="/" replace />;
+
+  const gallery = tourGallery(tour);
+  const pricePerPerson = tourPrice(tour);
+
+  return (
+    <div className="min-h-screen bg-tropical-bg text-slate-900">
+      <header className="absolute top-0 left-0 right-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+          <Link to="/" className="font-serif text-2xl font-bold text-white">Siam<span className="text-sunset">Voyage</span></Link>
+          <Link to="/" className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold text-white backdrop-blur-md hover:bg-white/25">Back home</Link>
+        </div>
+      </header>
+
+      <section className="relative min-h-[74vh] flex items-end overflow-hidden">
+        <img src={tour.img} alt={tour.name} className="absolute inset-0 h-full w-full object-cover" referrerPolicy="no-referrer" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/45 to-slate-950/15" />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pb-14 pt-28 w-full">
+          <div className="max-w-3xl text-white">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-bold uppercase tracking-widest backdrop-blur-md">
+              <Clock size={14} /> {tour.duration}
+            </div>
+            <h1 className="text-4xl sm:text-6xl font-serif font-bold leading-tight mb-5">{tour.name}</h1>
+            <p className="text-lg text-white/80 leading-relaxed max-w-2xl">{tour.description}</p>
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <a href="#book" className="inline-flex items-center gap-2 rounded-full bg-sunset px-6 py-3 font-bold text-white shadow-xl shadow-black/20 hover:bg-orange-600">Book this tour <ArrowRight size={18} /></a>
+              <div className="text-white"><span className="text-3xl font-bold">{formatBaht(pricePerPerson)}</span><span className="ml-2 text-white/60">per person</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-14">
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_420px] gap-10 items-start">
+          <div className="space-y-10">
+            <section>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {gallery.map((img, i) => (
+                  <div key={img} className={`overflow-hidden rounded-2xl bg-slate-100 ${i === 0 ? 'col-span-2 row-span-2 aspect-[16/10]' : 'aspect-[4/3]'}`}>
+                    <img src={img} alt={`${tour.name} gallery ${i + 1}`} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="grid md:grid-cols-3 gap-4">
+              {[
+                ['Duration', tour.duration],
+                ['Price', `${formatBaht(pricePerPerson)} per person`],
+                ['Booking', 'Pay later after confirmation']
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-2xl bg-white border border-slate-100 p-5 shadow-sm">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">{label}</div>
+                  <div className="font-bold text-slate-900">{value}</div>
+                </div>
+              ))}
+            </section>
+
+            <section className="rounded-2xl bg-white border border-slate-100 p-6 shadow-sm">
+              <h2 className="text-2xl font-serif font-bold mb-3">Tour Information</h2>
+              <p className="text-slate-600 leading-relaxed">{tour.description}</p>
+            </section>
+
+            <section className="grid md:grid-cols-2 gap-6">
+              <div className="rounded-2xl bg-white border border-slate-100 p-6 shadow-sm">
+                <h2 className="text-xl font-serif font-bold mb-4">Highlights</h2>
+                <ul className="space-y-3">
+                  {tour.highlights.map(item => <li key={item} className="flex gap-3 text-sm text-slate-700"><CheckCircle2 size={18} className="text-sunset shrink-0 mt-0.5" /> {item}</li>)}
+                </ul>
+              </div>
+              <div className="rounded-2xl bg-white border border-slate-100 p-6 shadow-sm">
+                <h2 className="text-xl font-serif font-bold mb-4">Included</h2>
+                <ul className="space-y-3">
+                  {tour.includes.map(item => <li key={item} className="flex gap-3 text-sm text-slate-700"><Sparkles size={18} className="text-ocean shrink-0 mt-0.5" /> {item}</li>)}
+                </ul>
+              </div>
+            </section>
+
+            <section className="grid md:grid-cols-2 gap-6">
+              <div className="rounded-2xl bg-white border border-slate-100 p-6 shadow-sm">
+                <h2 className="text-xl font-serif font-bold mb-4">Excluded</h2>
+                <ul className="space-y-3">
+                  {tourExcluded(tour).map(item => <li key={item} className="flex gap-3 text-sm text-slate-700"><X size={18} className="text-slate-400 shrink-0 mt-0.5" /> {item}</li>)}
+                </ul>
+              </div>
+              <div className="rounded-2xl bg-white border border-slate-100 p-6 shadow-sm">
+                <h2 className="text-xl font-serif font-bold mb-4">Itinerary</h2>
+                <div className="space-y-4">
+                  {tourItinerary(tour).map((item, i) => (
+                    <div key={item} className="flex gap-3">
+                      <div className="h-7 w-7 rounded-full bg-sunset text-white flex items-center justify-center text-xs font-bold shrink-0">{i + 1}</div>
+                      <p className="text-sm text-slate-700 leading-relaxed">{item}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <aside id="book" className="lg:sticky lg:top-6">
+            <TourBookingPanel tour={tour} />
+          </aside>
+        </div>
+      </main>
+      <Footer />
+      <ChatWidget />
+    </div>
+  );
+}
+
 const BookingRow = ({ b, highlight = false }: { b: Booking; highlight?: boolean }) => (
   <motion.div
     layout
@@ -2486,13 +2833,11 @@ const ChatWidget = () => {
 
 export default function App() {
   const [showPlanner, setShowPlanner] = useState(false);
-  const [bookingOpen, setBookingOpen] = useState(false);
-  const [bookingTour, setBookingTour] = useState<string | undefined>(undefined);
   const [rentalOpen, setRentalOpen] = useState(false);
   const [rentalCar, setRentalCar] = useState<string | undefined>(undefined);
   const [highlightedTour, setHighlightedTour] = useState<string | null>(null);
   const [showStickyCTA, setShowStickyCTA] = useState(false);
-  const { bookings, addBooking } = useBookings();
+  const { bookings } = useBookings();
 
   useEffect(() => {
     const onScroll = () => setShowStickyCTA(window.scrollY > 500);
@@ -2510,11 +2855,6 @@ export default function App() {
   const closePlanner = () => {
     setShowPlanner(false);
     sessionStorage.setItem('plannerDismissed', '1');
-  };
-
-  const openBooking = (tour?: string) => {
-    setBookingTour(tour);
-    setBookingOpen(true);
   };
 
   const openRental = (car?: string) => {
@@ -2544,7 +2884,7 @@ export default function App() {
         <LiveBookingsSection bookings={bookings} />
         <TestimonialMarquee />
         <Services />
-        <TourPackages onBookTour={(t) => openBooking(t)} highlightedTour={highlightedTour} />
+        <TourPackages highlightedTour={highlightedTour} />
         <CarRentalSection onRentCar={(c) => openRental(c)} />
         <WhyChooseUs />
         <ContactSection />
@@ -2552,12 +2892,6 @@ export default function App() {
       </main>
       <Footer />
       <TripPlannerModal open={showPlanner} onClose={closePlanner} />
-      <BookingModal
-        open={bookingOpen}
-        initialTour={bookingTour}
-        onClose={() => setBookingOpen(false)}
-        onBook={addBooking}
-      />
       <CarRentalModal
         open={rentalOpen}
         initialCar={rentalCar}
