@@ -374,6 +374,51 @@ function sendVoucherEmail_(booking) {
   });
 }
 
+/**
+ * TEST HELPER — run this from the Apps Script editor's Run button.
+ *
+ * Sends the latest voucher email design to the script owner's own Gmail
+ * (Session.getActiveUser()) using a fake booking. Useful for:
+ *  - Verifying which version of buildVoucherHtml_ is actually deployed
+ *  - Iterating on the design without needing a real booking
+ *  - Confirming Gmail rendered the HTML correctly
+ *
+ * After updating Code.gs in the Apps Script editor:
+ *   1. Save (Ctrl+S)
+ *   2. Run -> sendTestVoucherEmail (top dropdown)
+ *   3. Check your inbox — that's exactly the email new bookings will get
+ *      ONCE you redeploy (Deploy -> Manage Deployments -> Edit existing
+ *      deployment -> Version "New version" -> Deploy).
+ */
+function sendTestVoucherEmail() {
+  var to = Session.getActiveUser().getEmail();
+  if (!to) {
+    throw new Error('Could not determine the active user email — open this script while signed into the owner account.');
+  }
+  var booking = {
+    bookingId: 'SV-TESTPREVIEW-0001',
+    name: 'Riven Myat',
+    email: to,
+    phone: '+66 95 028 7983',
+    country: 'Thailand',
+    countryCode: 'TH',
+    package: 'Phi Phi Island Escape',
+    packageSlug: 'phi-phi-island-escape',
+    travelDate: '2026-09-15',
+    guestCount: 2,
+    notes: 'Anniversary trip — vegetarian breakfast preferred.',
+    status: 'Pending',
+    createdAt: new Date().toISOString()
+  };
+  MailApp.sendEmail({
+    to: to,
+    subject: '[TEST] Siam Voyage voucher preview — ' + booking.bookingId,
+    htmlBody: buildVoucherHtml_(booking),
+    name: 'Siam Voyage (Test)'
+  });
+  Logger.log('Test voucher sent to ' + to);
+}
+
 function buildVoucherHtml_(booking) {
   var name = escapeHtml_(booking.name);
   var bookingId = escapeHtml_(booking.bookingId);

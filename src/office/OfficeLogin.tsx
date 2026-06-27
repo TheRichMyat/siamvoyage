@@ -36,7 +36,13 @@ export function OfficeLogin() {
           </div>
           <div>
             <div className="text-[10px] font-bold uppercase tracking-widest text-sunset">Staff Access</div>
-            <h1 className="text-2xl font-serif font-bold text-slate-900">Siam Voyage Office</h1>
+            <h1 className="flex items-baseline gap-2 leading-none" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+              <span className="flex items-baseline">
+                <span className="text-2xl italic font-semibold text-sunset">Siam</span>
+                <span className="text-2xl italic font-semibold text-slate-900">Voyage</span>
+              </span>
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-400" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Office</span>
+            </h1>
           </div>
         </div>
 

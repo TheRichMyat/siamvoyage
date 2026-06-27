@@ -2117,7 +2117,7 @@ export function TourDetailPage() {
             </section>
 
             <section className="rounded-2xl bg-white border border-slate-100 p-6 shadow-sm">
-              <h2 className="text-2xl font-serif font-bold mb-3">Tour Information</h2>
+              <h2 className="text-xl font-serif font-bold mb-3">Tour Information</h2>
               <p className="text-slate-600 leading-relaxed">{tour.description}</p>
             </section>
 
