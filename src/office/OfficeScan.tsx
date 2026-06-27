@@ -14,22 +14,32 @@ function extractBookingId(value: string): string | null {
 export function OfficeScan() {
   const navigate = useNavigate();
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  // Prevents the QR callback (which fires ~10x/sec while the code is visible)
+  // from triggering multiple stops + navigates. On mobile this was leaving
+  // the camera stream half-open and the destination route blank until refresh.
+  const navigatedRef = useRef(false);
   const [manualId, setManualId] = useState('');
   const [status, setStatus] = useState('Point the camera at a Siam Voyage voucher QR.');
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
   const openBooking = async (rawValue: string) => {
+    if (navigatedRef.current) return;
     const bookingId = extractBookingId(rawValue);
     if (!bookingId) {
       setStatus('That code does not look like a Siam Voyage booking ID.');
       return;
     }
+    navigatedRef.current = true;
     setStatus(`Opening ${bookingId}...`);
     try {
       await scannerRef.current?.stop();
+      try { scannerRef.current?.clear(); } catch { /* scanner clear race */ }
     } catch { /* camera may already be stopped */ }
-    navigate(`/office/booking/${bookingId}`);
+    // Give the mobile browser one frame to fully release the camera before
+    // mounting the next route — otherwise the destination route can paint blank.
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    navigate(`/office/booking/${bookingId}`, { replace: true });
   };
 
   useEffect(() => {

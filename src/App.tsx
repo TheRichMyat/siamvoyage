@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef, type ReactNode } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence, useAnimation, type Transition } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -209,7 +209,12 @@ const findTourBySlug = (slug?: string): TourInfo | undefined =>
 const tourGallery = (tour: TourInfo): string[] => tour.gallery ?? [
   tour.img,
   'https://images.pexels.com/photos/2161449/pexels-photo-2161449.jpeg',
-  'https://images.unsplash.com/photo-1508009603885-50cf7c579365?auto=format&fit=crop&q=80&w=1000'
+  'https://images.unsplash.com/photo-1508009603885-50cf7c579365?auto=format&fit=crop&q=80&w=1000',
+  'https://images.unsplash.com/photo-1528181304800-259b08848526?auto=format&fit=crop&q=80&w=1000',
+  'https://images.pexels.com/photos/1450353/pexels-photo-1450353.jpeg',
+  'https://images.pexels.com/photos/3601425/pexels-photo-3601425.jpeg',
+  'https://images.unsplash.com/photo-1563492065599-3520f775eeed?auto=format&fit=crop&q=80&w=1000',
+  'https://images.pexels.com/photos/16240113/pexels-photo-16240113.jpeg'
 ];
 
 const tourExcluded = (tour: TourInfo): string[] => tour.excluded ?? [
@@ -489,8 +494,8 @@ const Navbar = ({ onPlanTrip, onSearch }: { onPlanTrip: () => void; onSearch: (d
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/90 backdrop-blur-md py-3 shadow-sm' : 'bg-transparent py-4 sm:py-6'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex justify-between items-center gap-4 sm:gap-6">
         <a href="#" className="flex items-center leading-none shrink-0 min-w-0 pr-2" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-          <span className="text-2xl sm:text-3xl italic font-semibold text-sunset">Siam</span>
-          <span className={`text-2xl sm:text-3xl italic font-semibold ${isScrolled ? 'text-slate-900' : 'text-white'}`}>Voyage</span>
+          <span className="text-3xl italic font-semibold text-sunset">Siam</span>
+          <span className={`text-3xl italic font-semibold ${isScrolled ? 'text-slate-900' : 'text-white'}`}>Voyage</span>
         </a>
 
         {/* Desktop Nav */}
@@ -1023,7 +1028,7 @@ const TourPackages = ({ highlightedTour }: { highlightedTour?: string | null }) 
                     </span>
                   </div>
                   <Link
-                    to={`/tour/${slugifyPackage(p.title)}`}
+                    to={`/tour/${slugifyPackage(p.title)}#book`}
                     aria-label={`Book ${p.title}`}
                     className="bg-slate-900 text-white p-2.5 rounded-xl hover:bg-sunset transition-colors flex items-center gap-1.5 text-xs font-semibold px-3"
                   >
@@ -1278,13 +1283,13 @@ const Footer = () => {
               <span className="text-3xl italic font-semibold text-sunset">Siam</span>
               <span className="text-3xl italic font-semibold text-slate-900">Voyage</span>
             </a>
-            <p className="text-slate-500 max-w-sm leading-relaxed">
+            <p className="text-sm text-slate-500 max-w-sm leading-relaxed">
               Experience the magic of Thailand with SiamVoyage. We provide premium, personalized travel experiences that showcase the true beauty of the Land of Smiles.
             </p>
           </div>
           <div>
-            <h4 className="font-bold text-slate-900 mb-6">Quick Links</h4>
-            <ul className="space-y-4 text-slate-500">
+            <h4 className="font-bold text-slate-900 mb-6 text-sm uppercase tracking-wider">Quick Links</h4>
+            <ul className="space-y-3 text-sm text-slate-500">
               <li><a href="#" className="hover:text-sunset transition-colors">Home</a></li>
               <li><a href="#services" className="hover:text-sunset transition-colors">Services</a></li>
               <li><a href="#tours" className="hover:text-sunset transition-colors">Tours</a></li>
@@ -1293,15 +1298,15 @@ const Footer = () => {
             </ul>
           </div>
           <div>
-            <h4 className="font-bold text-slate-900 mb-6">Contact</h4>
-            <ul className="space-y-4 text-slate-500">
-              <li className="flex items-center gap-3"><MapPin size={18} /> Bangkok, Thailand</li>
-              <li className="flex items-center gap-3"><Mail size={18} /> hello@siamvoyage.com</li>
-              <li className="flex items-center gap-3"><Clock size={18} /> 24/7 Support</li>
+            <h4 className="font-bold text-slate-900 mb-6 text-sm uppercase tracking-wider">Contact</h4>
+            <ul className="space-y-3 text-sm text-slate-500">
+              <li className="flex items-center gap-3"><MapPin size={16} /> Bangkok, Thailand</li>
+              <li className="flex items-center gap-3"><Mail size={16} /> hello@siamvoyage.com</li>
+              <li className="flex items-center gap-3"><Clock size={16} /> 24/7 Support</li>
             </ul>
           </div>
         </div>
-        <div className="pt-8 border-t border-slate-200 text-center text-slate-400 text-sm">
+        <div className="pt-8 border-t border-slate-200 text-center text-slate-400 text-xs">
           <p>© {new Date().getFullYear()} SiamVoyage Tourism Company. All rights reserved.</p>
         </div>
       </div>
@@ -1813,10 +1818,16 @@ type TourBookingFormState = {
   notes: string;
 };
 
-const TourBookingPanel = ({ tour }: { tour: TourInfo }) => {
+type BookingStage = 'form' | 'review' | 'success';
+
+const TourBookingPanel = ({ tour, onStageChange }: { tour: TourInfo; onStageChange?: (stage: BookingStage) => void }) => {
   const navigate = useNavigate();
   const { addBooking } = useBookings();
-  const [stage, setStage] = useState<'form' | 'review' | 'success'>('form');
+  const [stage, setStageState] = useState<BookingStage>('form');
+  const setStage = (next: BookingStage) => {
+    setStageState(next);
+    onStageChange?.(next);
+  };
   const [form, setForm] = useState<TourBookingFormState>({
     name: '',
     email: '',
@@ -1861,7 +1872,6 @@ const TourBookingPanel = ({ tour }: { tour: TourInfo }) => {
       const result = await addBooking(buildPayload());
       setConfirmation({ booking: result.booking, ref: result.bookingId });
       setStage('success');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Booking failed. Please try again.');
     } finally {
@@ -1908,7 +1918,6 @@ const TourBookingPanel = ({ tour }: { tour: TourInfo }) => {
             e.preventDefault();
             setSubmitError(null);
             setStage('review');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
           className="p-6 space-y-4"
         >
@@ -1994,53 +2003,106 @@ const TourBookingPanel = ({ tour }: { tour: TourInfo }) => {
 
 export function TourDetailPage() {
   const { tourSlug } = useParams<{ tourSlug: string }>();
+  const location = useLocation();
   const tour = findTourBySlug(tourSlug);
+  const [bookingStage, setBookingStage] = useState<BookingStage>('form');
+
+  // Scroll to #book anchor when arriving with that hash (e.g. from a home Book button)
+  useEffect(() => {
+    if (location.hash === '#book') {
+      // Defer so the page paints first
+      const t = window.setTimeout(() => {
+        document.getElementById('book')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 80);
+      return () => window.clearTimeout(t);
+    }
+  }, [location.hash]);
+
+  // When user advances to review/success, scroll back to top of the clean booking page
+  useEffect(() => {
+    if (bookingStage !== 'form') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [bookingStage]);
 
   if (!tour) return <Navigate to="/" replace />;
 
   const gallery = tourGallery(tour);
   const pricePerPerson = tourPrice(tour);
+  const showTourContent = bookingStage === 'form';
 
   return (
     <div className="min-h-screen bg-tropical-bg text-slate-900">
-      <header className="absolute top-0 left-0 right-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
-          <Link to="/" className="font-serif text-2xl font-bold text-white">Siam<span className="text-sunset">Voyage</span></Link>
-          <Link to="/" className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold text-white backdrop-blur-md hover:bg-white/25">Back home</Link>
-        </div>
-      </header>
-
-      <section className="relative min-h-[74vh] flex items-end overflow-hidden">
-        <img src={tour.img} alt={tour.name} className="absolute inset-0 h-full w-full object-cover" referrerPolicy="no-referrer" />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/45 to-slate-950/15" />
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pb-14 pt-28 w-full">
-          <div className="max-w-3xl text-white">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-bold uppercase tracking-widest backdrop-blur-md">
-              <Clock size={14} /> {tour.duration}
-            </div>
-            <h1 className="text-4xl sm:text-6xl font-serif font-bold leading-tight mb-5">{tour.name}</h1>
-            <p className="text-lg text-white/80 leading-relaxed max-w-2xl">{tour.description}</p>
-            <div className="mt-8 flex flex-wrap items-center gap-4">
-              <a href="#book" className="inline-flex items-center gap-2 rounded-full bg-sunset px-6 py-3 font-bold text-white shadow-xl shadow-black/20 hover:bg-orange-600">Book this tour <ArrowRight size={18} /></a>
-              <div className="text-white"><span className="text-3xl font-bold">{formatBaht(pricePerPerson)}</span><span className="ml-2 text-white/60">per person</span></div>
-            </div>
+      {/* Header — overlays hero on form stage, solid white on review/success */}
+      {showTourContent ? (
+        <header className="absolute top-0 left-0 right-0 z-30">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+            <Link to="/" className="flex items-center leading-none" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+              <span className="text-3xl italic font-semibold text-sunset">Siam</span>
+              <span className="text-3xl italic font-semibold text-white">Voyage</span>
+            </Link>
+            <Link to="/" className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold text-white backdrop-blur-md hover:bg-white/25">Back home</Link>
           </div>
-        </div>
-      </section>
+        </header>
+      ) : (
+        <header className="bg-white border-b border-slate-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+            <Link to="/" className="flex items-center leading-none" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+              <span className="text-3xl italic font-semibold text-sunset">Siam</span>
+              <span className="text-3xl italic font-semibold text-slate-900">Voyage</span>
+            </Link>
+            <Link to="/" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200">Back home</Link>
+          </div>
+        </header>
+      )}
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-14">
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_420px] gap-10 items-start">
-          <div className="space-y-10">
-            <section>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {gallery.map((img, i) => (
-                  <div key={img} className={`overflow-hidden rounded-2xl bg-slate-100 ${i === 0 ? 'col-span-2 row-span-2 aspect-[16/10]' : 'aspect-[4/3]'}`}>
-                    <img src={img} alt={`${tour.name} gallery ${i + 1}`} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                  </div>
-                ))}
+      {/* Tour content — only visible on form stage */}
+      {showTourContent && (
+        <>
+          <section className="relative min-h-[74vh] flex items-end overflow-hidden">
+            <img src={tour.img} alt={tour.name} className="absolute inset-0 h-full w-full object-cover" referrerPolicy="no-referrer" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/45 to-slate-950/15" />
+            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pb-14 pt-28 w-full">
+              <div className="max-w-3xl text-white">
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-bold uppercase tracking-widest backdrop-blur-md">
+                  <Clock size={14} /> {tour.duration}
+                </div>
+                <h1 className="text-4xl sm:text-6xl font-serif font-bold leading-tight mb-5">{tour.name}</h1>
+                <p className="text-lg text-white/80 leading-relaxed max-w-2xl">{tour.description}</p>
+                <div className="mt-8 flex flex-wrap items-center gap-4">
+                  <a href="#book" className="inline-flex items-center gap-2 rounded-full bg-sunset px-6 py-3 font-bold text-white shadow-xl shadow-black/20 hover:bg-orange-600">Book this tour <ArrowRight size={18} /></a>
+                  <div className="text-white"><span className="text-3xl font-bold">{formatBaht(pricePerPerson)}</span><span className="ml-2 text-white/60">per person</span></div>
+                </div>
               </div>
-            </section>
+            </div>
+          </section>
 
+          {/* Project Gallery — directly below hero, full width */}
+          <section className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+            <div className="mb-6 flex items-end justify-between gap-4">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-sunset mb-2">Gallery</div>
+                <h2 className="text-2xl sm:text-3xl font-serif font-bold text-slate-900">A glimpse of {tour.name}</h2>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {gallery.map((img, i) => (
+                <div
+                  key={img}
+                  className={`overflow-hidden rounded-2xl bg-slate-100 ${i === 0 ? 'col-span-2 row-span-2 aspect-[16/10]' : 'aspect-[4/3]'}`}
+                >
+                  <img
+                    src={img}
+                    alt={`${tour.name} gallery ${i + 1}`}
+                    className="h-full w-full object-cover hover:scale-105 transition-transform duration-700"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 pb-14 space-y-8">
             <section className="grid md:grid-cols-3 gap-4">
               {[
                 ['Duration', tour.duration],
@@ -2093,13 +2155,32 @@ export function TourDetailPage() {
                 </div>
               </div>
             </section>
-          </div>
+          </main>
+        </>
+      )}
 
-          <aside id="book" className="lg:sticky lg:top-6">
-            <TourBookingPanel tour={tour} />
-          </aside>
+      {/* Booking section — STAYS MOUNTED across stages so form state survives.
+          On form stage: anchors at #book at the bottom of the page.
+          On review/success: occupies the full clean page. */}
+      <section
+        id="book"
+        className={
+          showTourContent
+            ? 'max-w-7xl mx-auto px-4 sm:px-6 pb-14 scroll-mt-24'
+            : 'px-4 sm:px-6 py-10 sm:py-16'
+        }
+      >
+        <div className="max-w-2xl mx-auto">
+          {showTourContent && (
+            <div className="text-center mb-6">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-sunset mb-2">Reserve your spot</div>
+              <h2 className="text-3xl font-serif font-bold text-slate-900">Book {tour.name}</h2>
+            </div>
+          )}
+          <TourBookingPanel tour={tour} onStageChange={setBookingStage} />
         </div>
-      </main>
+      </section>
+
       <Footer />
       <ChatWidget />
     </div>
