@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Loader2, XCircle } from 'lucide-react';
 import { flagForCountryCode } from '../data/countries';
 import { fetchBookingById, updateBookingStatus } from '../services/bookingApi';
 import type { BookingStatus, OfficeBooking } from '../types/booking';
@@ -87,7 +87,26 @@ export function OfficeBookingDetail() {
     }
   };
 
+  // One-time auto-refresh on the first direct-URL hit for this booking.
+  // Customers/staff opening the URL from a QR scan sometimes land on a blank
+  // page in production (suspected first-paint race with the bundled router +
+  // Apps Script cold start). A single reload reliably fixes it. The flag is
+  // per-booking and per-session, so this never loops and never affects
+  // in-app navigation that already worked.
   useEffect(() => {
+    if (!bookingId) return;
+    const reloadKey = `sv_booking_reloaded_${bookingId}`;
+    let alreadyReloaded = false;
+    try {
+      alreadyReloaded = sessionStorage.getItem(reloadKey) === '1';
+    } catch { /* private mode etc */ }
+    if (!alreadyReloaded) {
+      try { sessionStorage.setItem(reloadKey, '1'); } catch { /* ignore */ }
+      // Defer just past the first paint so React gets a chance to commit,
+      // then hard-reload — that mirrors the manual refresh that already works.
+      window.setTimeout(() => window.location.reload(), 50);
+      return;
+    }
     load();
   }, [bookingId]);
 
@@ -135,7 +154,22 @@ export function OfficeBookingDetail() {
   };
 
   if (loading) {
-    return <div className="text-center py-20 text-slate-400">Loading booking…</div>;
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="bg-white border border-slate-100 rounded-2xl shadow-sm px-8 py-10 flex flex-col items-center gap-4 max-w-sm">
+          <Loader2 size={32} className="text-sunset animate-spin" />
+          <div className="text-center">
+            <div className="text-base font-bold text-slate-900">Loading booking</div>
+            <div className="text-xs text-slate-500 mt-1">
+              {bookingId}
+            </div>
+          </div>
+          <p className="text-xs text-slate-500 text-center leading-relaxed">
+            Connecting to the booking system. The first lookup after a quiet period can take a few seconds.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (error || !booking) {
