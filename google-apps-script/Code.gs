@@ -241,7 +241,8 @@ function getBooking_(bookingId) {
   var rowIndex = findRowByBookingId_(id);
   if (rowIndex < 0) throw new Error('Booking not found');
   var sheet = getSheet_();
-  var row = rowToObject_(sheet.getRange(rowIndex, 1, rowIndex, HEADERS.length).getValues()[0]);
+  // getRange(row, column, numRows, numColumns) — numRows must be 1 to read a single booking row.
+  var row = rowToObject_(sheet.getRange(rowIndex, 1, 1, HEADERS.length).getValues()[0]);
   return bookingToResponse_(row);
 }
 
@@ -258,7 +259,9 @@ function updateBookingStatus_(body) {
   if (rowIndex < 0) throw new Error('Booking not found');
 
   var sheet = getSheet_();
-  var row = rowToObject_(sheet.getRange(rowIndex, 1, rowIndex, HEADERS.length).getValues()[0]);
+  // getRange(row, column, numRows, numColumns) — numRows must be 1 to read/write a single row,
+  // not rowIndex (which would request a range that's rowIndex rows tall).
+  var row = rowToObject_(sheet.getRange(rowIndex, 1, 1, HEADERS.length).getValues()[0]);
   row.status = status;
   row.updatedAt = trim_(body.updatedAt) || new Date().toISOString();
 
@@ -267,7 +270,7 @@ function updateBookingStatus_(body) {
   if (body.cancellationReason) row.cancellationReason = body.cancellationReason;
 
   var values = HEADERS.map(function (header) { return row[header]; });
-  sheet.getRange(rowIndex, 1, rowIndex, HEADERS.length).setValues([values]);
+  sheet.getRange(rowIndex, 1, 1, HEADERS.length).setValues([values]);
 
   return bookingToResponse_(row);
 }
