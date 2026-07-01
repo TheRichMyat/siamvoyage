@@ -91,7 +91,16 @@ const TOUR_CATALOG: TourInfo[] = [
       'Golden-hour stop at Maya Bay viewpoint',
       'Beachfront overnight with sunrise swim'
     ],
-    includes: ['Beachfront resort stay', 'Daily breakfast', 'Speedboat transfers', 'English-speaking guide', 'Snorkel gear & life jackets']
+    includes: ['Beachfront resort stay', 'Daily breakfast', 'Speedboat transfers', 'English-speaking guide', 'Snorkel gear & life jackets'],
+    gallery: [
+      '/gallery/phi-phi/1.jpg',
+      '/gallery/phi-phi/2.jpg',
+      '/gallery/phi-phi/3.jpg',
+      '/gallery/phi-phi/4.jpg',
+      '/gallery/phi-phi/5.jpg',
+      '/gallery/phi-phi/6.jpg',
+      '/gallery/phi-phi/7.jpg'
+    ]
   },
   {
     name: 'Bangkok Cultural Journey',
@@ -105,7 +114,16 @@ const TOUR_CATALOG: TourInfo[] = [
       'Chao Phraya river longtail boat ride',
       'Street-food tour through Yaowarat (Chinatown)'
     ],
-    includes: ['Hotel pickup & drop-off', 'Lunch & food tastings', 'Air-conditioned transport', 'Expert local guide', 'All entrance fees']
+    includes: ['Hotel pickup & drop-off', 'Lunch & food tastings', 'Air-conditioned transport', 'Expert local guide', 'All entrance fees'],
+    gallery: [
+      '/gallery/thai/1.jpg',
+      '/gallery/thai/5.jpg',
+      '/gallery/thai/9.jpg',
+      '/gallery/thai/10.jpg',
+      '/gallery/thai/2.jpg',
+      '/gallery/thai/3.jpg',
+      '/gallery/thai/6.jpg'
+    ]
   },
   {
     name: 'Chiang Mai Mountain Retreat',
@@ -119,7 +137,16 @@ const TOUR_CATALOG: TourInfo[] = [
       'Hill-tribe village jungle trek',
       'Hands-on Thai cooking class with mountain views'
     ],
-    includes: ['Boutique mountain lodge', 'All meals included', 'Private transport', 'Certified naturalist guide', 'All activities & gear']
+    includes: ['Boutique mountain lodge', 'All meals included', 'Private transport', 'Certified naturalist guide', 'All activities & gear'],
+    gallery: [
+      '/gallery/thai/2.jpg',
+      '/gallery/thai/9.jpg',
+      '/gallery/thai/5.jpg',
+      '/gallery/thai/1.jpg',
+      '/gallery/thai/10.jpg',
+      '/gallery/thai/3.jpg',
+      '/gallery/thai/6.jpg'
+    ]
   },
   {
     name: 'Krabi Beach Paradise',
@@ -133,7 +160,16 @@ const TOUR_CATALOG: TourInfo[] = [
       'Railay Beach kayaking or climbing',
       'Sunset dinner at Phra Nang Cave'
     ],
-    includes: ['4★ beachfront resort', 'Daily breakfast', 'All island day tours', 'Airport transfers', '24/7 concierge support']
+    includes: ['4★ beachfront resort', 'Daily breakfast', 'All island day tours', 'Airport transfers', '24/7 concierge support'],
+    gallery: [
+      '/gallery/thai/3.jpg',
+      '/gallery/thai/6.jpg',
+      '/gallery/thai/4.jpg',
+      '/gallery/thai/8.jpg',
+      '/gallery/thai/10.jpg',
+      '/gallery/thai/1.jpg',
+      '/gallery/thai/9.jpg'
+    ]
   },
   {
     name: 'Ayutthaya Historic Tour',
@@ -147,7 +183,16 @@ const TOUR_CATALOG: TourInfo[] = [
       'Optional elephant heritage village',
       'Scenic river cruise back to Bangkok'
     ],
-    includes: ['Bangkok hotel pickup', 'Lunch on the riverboat', 'Bicycle rental on site', 'Licensed historian guide', 'All site entrance fees']
+    includes: ['Bangkok hotel pickup', 'Lunch on the riverboat', 'Bicycle rental on site', 'Licensed historian guide', 'All site entrance fees'],
+    gallery: [
+      '/gallery/thai/5.jpg',
+      '/gallery/thai/9.jpg',
+      '/gallery/thai/1.jpg',
+      '/gallery/thai/2.jpg',
+      '/gallery/thai/10.jpg',
+      '/gallery/thai/3.jpg',
+      '/gallery/thai/6.jpg'
+    ]
   },
   {
     name: 'Koh Samui Luxury Getaway',
@@ -161,7 +206,16 @@ const TOUR_CATALOG: TourInfo[] = [
       'Full-day Thai spa & wellness ritual',
       'Private chef in-villa dining experience'
     ],
-    includes: ['5★ private pool villa', 'Dedicated butler', 'Sunset yacht cruise', 'Two spa treatments', 'Airport transfers']
+    includes: ['5★ private pool villa', 'Dedicated butler', 'Sunset yacht cruise', 'Two spa treatments', 'Airport transfers'],
+    gallery: [
+      '/gallery/thai/4.jpg',
+      '/gallery/thai/7.jpg',
+      '/gallery/thai/8.jpg',
+      '/gallery/thai/3.jpg',
+      '/gallery/thai/6.jpg',
+      '/gallery/thai/10.jpg',
+      '/gallery/thai/1.jpg'
+    ]
   },
   {
     name: 'Hua Hin Royal Seaside',
@@ -175,7 +229,16 @@ const TOUR_CATALOG: TourInfo[] = [
       'Cicada night market for crafts & street food',
       'Calm-water beach day with sunset cruise'
     ],
-    includes: ['Beachfront hotel stay', 'Daily breakfast', 'Bangkok return transfer', 'Local English-speaking guide', 'All market & temple entrance fees']
+    includes: ['Beachfront hotel stay', 'Daily breakfast', 'Bangkok return transfer', 'Local English-speaking guide', 'All market & temple entrance fees'],
+    gallery: [
+      '/gallery/thai/7.jpg',
+      '/gallery/thai/4.jpg',
+      '/gallery/thai/1.jpg',
+      '/gallery/thai/3.jpg',
+      '/gallery/thai/6.jpg',
+      '/gallery/thai/10.jpg',
+      '/gallery/thai/9.jpg'
+    ]
   },
   {
     name: 'Koh Phangan Full Moon Escape',
@@ -189,7 +252,16 @@ const TOUR_CATALOG: TourInfo[] = [
       'Phaeng waterfall jungle trek',
       'Sunset views from Three Sixty Bar'
     ],
-    includes: ['Beachfront bungalow stay', 'Daily breakfast', 'Speedboat & ferry transfers', 'Party-area access', '24/7 concierge support']
+    includes: ['Beachfront bungalow stay', 'Daily breakfast', 'Speedboat & ferry transfers', 'Party-area access', '24/7 concierge support'],
+    gallery: [
+      '/gallery/thai/8.jpg',
+      '/gallery/thai/4.jpg',
+      '/gallery/thai/7.jpg',
+      '/gallery/thai/3.jpg',
+      '/gallery/thai/6.jpg',
+      '/gallery/thai/10.jpg',
+      '/gallery/thai/9.jpg'
+    ]
   }
 ];
 
