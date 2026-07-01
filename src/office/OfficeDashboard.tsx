@@ -61,6 +61,16 @@ function ymdRangeBackward(endYmd: string, count: number): string[] {
   return out;
 }
 
+// Sheets often auto-converts date cells into Date objects, which serialize to
+// ISO timestamps like "2026-06-28T17:00:00.000Z" rather than the "2026-06-28"
+// string the form submitted. Normalize both shapes back to YYYY-MM-DD in
+// Bangkok time so calendar/snapshot lookups don't silently miss bookings.
+function normalizeYmd(value?: string): string {
+  if (!value) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  return toBkkYmd(value);
+}
+
 // ─── Section header ───────────────────────────────────────────────────────────
 function SectionHeader({ icon, title, subtitle, action }: { icon?: React.ReactNode; title: string; subtitle?: string; action?: React.ReactNode }) {
   return (
@@ -242,13 +252,14 @@ function TravelCalendar({ bookings }: { bookings: OfficeBooking[] }) {
   const firstWeekday = (new Date(cursor.y, cursor.m, 1).getDay() + 6) % 7; // Mon=0
   const monthLabel = new Date(cursor.y, cursor.m, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  // Aggregate guests per day (travel date)
+  // Aggregate guests per day (travel date) — normalize because Sheets
+  // sometimes serializes the date cell as an ISO timestamp.
   const guestsByDay = useMemo(() => {
     const map = new Map<string, { guests: number; bookings: OfficeBooking[] }>();
     for (const b of bookings) {
       if (b.status === 'Cancelled') continue;
-      if (!b.travelDate) continue;
-      const ymd = b.travelDate; // ISO yyyy-mm-dd, no timezone shift
+      const ymd = normalizeYmd(b.travelDate);
+      if (!ymd) continue;
       const entry = map.get(ymd) || { guests: 0, bookings: [] };
       entry.guests += b.guestCount || 0;
       entry.bookings.push(b);
@@ -256,6 +267,8 @@ function TravelCalendar({ bookings }: { bookings: OfficeBooking[] }) {
     }
     return map;
   }, [bookings]);
+
+  const todayEntry = guestsByDay.get(today);
 
   // Find the busiest day in the visible month for color scaling
   const maxGuestsInMonth = useMemo(() => {
@@ -308,6 +321,25 @@ function TravelCalendar({ bookings }: { bookings: OfficeBooking[] }) {
 
       <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-6">
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+          {/* Today summary + color legend */}
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-4 border-b border-slate-100">
+            <div className="text-sm">
+              <span className="text-slate-500">Today: </span>
+              <span className="font-bold text-slate-900">
+                {todayEntry && todayEntry.guests > 0
+                  ? `${todayEntry.guests} traveler${todayEntry.guests === 1 ? '' : 's'} across ${todayEntry.bookings.length} booking${todayEntry.bookings.length === 1 ? '' : 's'}`
+                  : 'no travelers today'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              <span>Fewer</span>
+              {[0.15, 0.3, 0.5, 0.7, 0.9].map(opacity => (
+                <span key={opacity} className="w-4 h-4 rounded" style={{ backgroundColor: `rgba(242, 125, 38, ${opacity})` }} />
+              ))}
+              <span>More</span>
+            </div>
+          </div>
+
           <div className="grid grid-cols-7 gap-1 mb-2">
             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
               <div key={d} className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center py-1">{d}</div>
@@ -319,24 +351,32 @@ function TravelCalendar({ bookings }: { bookings: OfficeBooking[] }) {
               const isToday = cell.ymd === today;
               const isSelected = cell.ymd === selectedYmd;
               const intensity = maxGuestsInMonth > 0 ? cell.guests / maxGuestsInMonth : 0;
-              // Build subtle sunset background for cells with travel
-              const bg = cell.guests === 0
-                ? 'bg-slate-50'
-                : `bg-sunset/${Math.min(40, Math.max(10, Math.round(intensity * 40)))}`;
+              const bgStyle = cell.guests > 0
+                ? { backgroundColor: `rgba(242, 125, 38, ${0.15 + intensity * 0.7})` }
+                : { backgroundColor: 'rgb(248, 250, 252)' }; // slate-50
+              const ringClass = isSelected
+                ? 'ring-2 ring-sunset ring-offset-1'
+                : isToday
+                  ? 'ring-2 ring-slate-900'
+                  : 'hover:ring-1 hover:ring-slate-300';
+              const dayColor = cell.guests > 0 ? 'text-slate-900' : isToday ? 'text-slate-900' : 'text-slate-400';
               return (
                 <button
                   key={cell.ymd}
                   type="button"
                   onClick={() => setSelectedYmd(cell.ymd)}
-                  className={`aspect-square rounded-lg p-1.5 text-left transition-all relative
-                    ${bg}
-                    ${isSelected ? 'ring-2 ring-sunset' : isToday ? 'ring-1 ring-slate-400' : 'hover:ring-1 hover:ring-slate-300'}
-                  `}
+                  className={`aspect-square rounded-lg p-1.5 text-left transition-all relative ${ringClass}`}
+                  style={bgStyle}
                 >
-                  <div className={`text-xs font-bold ${cell.guests > 0 ? 'text-slate-900' : 'text-slate-400'}`}>{cell.day}</div>
+                  <div className={`text-xs font-bold ${dayColor}`}>{cell.day}</div>
+                  {isToday && (
+                    <div className="absolute top-1 right-1 text-[8px] font-bold uppercase tracking-widest text-slate-900">
+                      Now
+                    </div>
+                  )}
                   {cell.guests > 0 && (
-                    <div className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-0.5 text-[10px] font-bold text-sunset">
-                      <Users size={10} /> {cell.guests}
+                    <div className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-0.5 text-[10px] font-bold text-white px-1 rounded" style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}>
+                      <Users size={9} /> {cell.guests}
                     </div>
                   )}
                 </button>
@@ -375,11 +415,11 @@ function TravelCalendar({ bookings }: { bookings: OfficeBooking[] }) {
 // ─── 3. Trends ────────────────────────────────────────────────────────────────
 type TrendBucket = { key: string; label: string; bookingsCount: number; revenue: number };
 
-function buildTrendBuckets(bookings: OfficeBooking[], period: 7 | 30 | 90): TrendBucket[] {
+function buildTrendBuckets(bookings: OfficeBooking[], period: 7 | 30 | 90, windows: number = 1): TrendBucket[] {
   const today = todayYmd();
   // 7d, 30d → daily buckets. 90d → weekly buckets (Mon-Sun).
   if (period === 7 || period === 30) {
-    const days = ymdRangeBackward(today, period);
+    const days = ymdRangeBackward(today, period * windows);
     return days.map(ymd => {
       const dayBookings = bookings.filter(b => b.status !== 'Cancelled' && toBkkYmd(b.createdAt) === ymd);
       const revenue = bookings
@@ -388,14 +428,15 @@ function buildTrendBuckets(bookings: OfficeBooking[], period: 7 | 30 | 90): Tren
       return { key: ymd, label: ymdShort(ymd), bookingsCount: dayBookings.length, revenue };
     });
   }
-  // 90d → 13 weekly buckets ending on the current week
+  // 90d → 13 weekly buckets ending on the current week (× windows for delta)
   const weeks: TrendBucket[] = [];
+  const totalWeeks = 13 * windows;
   // Compute Monday of current week (Bangkok)
   const todayDate = ymdToDate(today)!;
   const dow = (todayDate.getDay() + 6) % 7; // Mon=0
   const monday = new Date(todayDate);
   monday.setDate(todayDate.getDate() - dow);
-  for (let i = 12; i >= 0; i--) {
+  for (let i = totalWeeks - 1; i >= 0; i--) {
     const start = new Date(monday);
     start.setDate(monday.getDate() - i * 7);
     const end = new Date(start);
@@ -416,10 +457,19 @@ function TrendsSection({ bookings }: { bookings: OfficeBooking[] }) {
   const [period, setPeriod] = useState<7 | 30 | 90>(7);
   const [metric, setMetric] = useState<'bookings' | 'revenue'>('bookings');
 
-  const buckets = useMemo(() => buildTrendBuckets(bookings, period), [bookings, period]);
-  const values = buckets.map(b => (metric === 'bookings' ? b.bookingsCount : b.revenue));
-  const maxValue = Math.max(1, ...values);
-  const total = values.reduce((s, v) => s + v, 0);
+  // Build the current window + the previous window (same length) so we can show a delta.
+  const bucketsAll = useMemo(() => buildTrendBuckets(bookings, period, 2), [bookings, period]);
+  const halfLen = bucketsAll.length / 2;
+  const previousBuckets = bucketsAll.slice(0, halfLen);
+  const currentBuckets = bucketsAll.slice(halfLen);
+
+  const currentValues = currentBuckets.map(b => (metric === 'bookings' ? b.bookingsCount : b.revenue));
+  const previousValues = previousBuckets.map(b => (metric === 'bookings' ? b.bookingsCount : b.revenue));
+  const total = currentValues.reduce((s, v) => s + v, 0);
+  const previousTotal = previousValues.reduce((s, v) => s + v, 0);
+  const deltaPct = previousTotal > 0 ? ((total - previousTotal) / previousTotal) * 100 : total > 0 ? 100 : 0;
+  const deltaColor = total >= previousTotal ? 'text-emerald-600' : 'text-red-500';
+  const deltaSign = total >= previousTotal ? '+' : '';
 
   const periodLabel = period === 90 ? '13 weeks' : `${period} days`;
 
@@ -428,31 +478,58 @@ function TrendsSection({ bookings }: { bookings: OfficeBooking[] }) {
       <SectionHeader
         icon={<BarChart3 size={18} />}
         title="Trends"
-        subtitle={`${metric === 'bookings' ? 'New bookings' : 'Paid revenue'} over the last ${periodLabel}`}
+        subtitle={metric === 'bookings' ? 'New bookings over time' : 'Paid revenue over time'}
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex rounded-xl border border-slate-200 bg-white p-0.5">
-              {([7, 30, 90] as const).map(p => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPeriod(p)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                    p === period ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {p === 7 ? '1 Week' : p === 30 ? '1 Month' : '3 Months'}
-                </button>
-              ))}
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+            {([7, 30, 90] as const).map(p => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPeriod(p)}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
+                  p === period ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {p === 7 ? '1W' : p === 30 ? '1M' : '3M'}
+              </button>
+            ))}
+          </div>
+        }
+      />
+
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_260px] gap-4">
+        {/* Left — big total + chart */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 pt-5 pb-3">
+          <div className="flex items-start justify-between mb-4 gap-3">
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                {metric === 'bookings' ? 'Bookings' : 'Revenue'} · last {periodLabel}
+              </div>
+              <div className="flex items-baseline gap-2 mt-1">
+                <div className="text-3xl font-bold text-slate-900 tabular-nums">
+                  {metric === 'bookings' ? total.toLocaleString('en-US') : formatBaht(total)}
+                </div>
+                {previousTotal > 0 || total > 0 ? (
+                  <div className={`text-xs font-bold ${deltaColor}`}>
+                    {deltaSign}{deltaPct.toFixed(1)}%
+                  </div>
+                ) : null}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">
+                vs previous {periodLabel}: {metric === 'bookings' ? previousTotal.toLocaleString('en-US') : formatBaht(previousTotal)}
+              </div>
             </div>
-            <div className="inline-flex rounded-xl border border-slate-200 bg-white p-0.5">
+
+            <div className="inline-flex rounded-lg bg-slate-100 p-0.5">
               {(['bookings', 'revenue'] as const).map(m => (
                 <button
                   key={m}
                   type="button"
                   onClick={() => setMetric(m)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                    m === metric ? 'bg-sunset text-white' : 'text-slate-600 hover:text-slate-900'
+                  className={`px-3 py-1 rounded-md text-[11px] font-bold transition-colors ${
+                    m === metric
+                      ? m === 'bookings' ? 'bg-white shadow text-slate-900' : 'bg-sunset text-white shadow'
+                      : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
                   {m === 'bookings' ? 'Bookings' : 'Revenue'}
@@ -460,64 +537,223 @@ function TrendsSection({ bookings }: { bookings: OfficeBooking[] }) {
               ))}
             </div>
           </div>
-        }
-      />
 
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-        <div className="flex items-baseline justify-between mb-4 gap-2">
-          <div>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total ({periodLabel})</div>
-            <div className="text-2xl font-bold text-slate-900 mt-0.5">
-              {metric === 'bookings' ? total.toLocaleString('en-US') : formatBaht(total)}
-            </div>
-          </div>
-          <div className="text-xs text-slate-500">
-            Avg per {period === 90 ? 'week' : 'day'}: <span className="font-bold text-slate-700">
-              {metric === 'bookings'
-                ? (total / buckets.length).toFixed(1)
-                : formatBaht(Math.round(total / buckets.length))}
-            </span>
-          </div>
+          <AreaChart buckets={currentBuckets} metric={metric} period={period} />
         </div>
 
-        {/* SVG bar chart */}
-        <div className="relative">
-          <div className="flex items-end gap-1 h-44">
-            {buckets.map(b => {
-              const v = metric === 'bookings' ? b.bookingsCount : b.revenue;
-              const heightPct = (v / maxValue) * 100;
-              return (
-                <div key={b.key} className="flex-1 flex flex-col items-center gap-1 group min-w-0">
-                  <div className="text-[9px] font-bold text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    {metric === 'bookings' ? v : formatBaht(v)}
-                  </div>
-                  <div
-                    className={`w-full rounded-t-md transition-all ${
-                      metric === 'bookings' ? 'bg-gradient-to-t from-slate-900 to-slate-700' : 'bg-gradient-to-t from-sunset to-orange-400'
-                    } ${v === 0 ? 'opacity-20' : ''} group-hover:brightness-110`}
-                    style={{ height: `${Math.max(heightPct, v > 0 ? 4 : 2)}%` }}
-                    title={`${b.label}: ${metric === 'bookings' ? v : formatBaht(v)}`}
-                  />
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex gap-1 mt-2">
-            {buckets.map((b, i) => {
-              // For 30d, show every 3rd label to avoid crowding. For 90d (weeks), show every other.
-              const stride = period === 30 ? 3 : period === 90 ? 2 : 1;
-              const visible = i % stride === 0 || i === buckets.length - 1;
-              return (
-                <div key={b.key} className="flex-1 text-[9px] text-slate-400 text-center min-w-0 truncate">
-                  {visible ? b.label : '·'}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        {/* Right — highlights panel */}
+        <TrendHighlights buckets={currentBuckets} metric={metric} period={period} bookings={bookings} />
       </div>
     </section>
   );
+}
+
+function TrendHighlights({ buckets, metric, period, bookings }: { buckets: TrendBucket[]; metric: 'bookings' | 'revenue'; period: 7 | 30 | 90; bookings: OfficeBooking[] }) {
+  const values = buckets.map(b => (metric === 'bookings' ? b.bookingsCount : b.revenue));
+  const activeDays = values.filter(v => v > 0).length;
+  const total = values.reduce((s, v) => s + v, 0);
+  const avg = total / buckets.length;
+  const maxVal = Math.max(0, ...values);
+  const maxIdx = values.indexOf(maxVal);
+  const peakLabel = maxVal > 0 && maxIdx >= 0 ? buckets[maxIdx].label : '—';
+
+  // Status split within the current window (created within period bucket range)
+  const windowKeys = new Set(buckets.map(b => b.key));
+  const windowBookings = bookings.filter(b => {
+    if (b.status === 'Cancelled') return false;
+    const ymd = toBkkYmd(b.createdAt);
+    if (period === 7 || period === 30) return windowKeys.has(ymd);
+    // For weekly, keys are week-start ymds; approximate by matching first-7-day inclusive
+    return buckets.some(bkt => ymd >= bkt.key && ymd <= shiftYmd(bkt.key, 6));
+  });
+  const paidCount = windowBookings.filter(b => b.status === 'Paid').length;
+  const pendingCount = windowBookings.filter(b => b.status === 'Pending').length;
+  const paidPct = windowBookings.length > 0 ? (paidCount / windowBookings.length) * 100 : 0;
+
+  const rows = [
+    { label: 'Peak', value: peakLabel, sub: maxVal > 0 ? (metric === 'bookings' ? `${maxVal} booking${maxVal === 1 ? '' : 's'}` : formatBaht(maxVal)) : 'no activity' },
+    { label: 'Average', value: metric === 'bookings' ? avg.toFixed(1) : formatBaht(Math.round(avg)), sub: `per ${period === 90 ? 'week' : 'day'}` },
+    { label: 'Active', value: `${activeDays}/${buckets.length}`, sub: period === 90 ? 'weeks with activity' : 'days with activity' }
+  ];
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col">
+      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">Highlights</div>
+
+      <div className="space-y-4 flex-1">
+        {rows.map(r => (
+          <div key={r.label}>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{r.label}</div>
+            <div className="text-base font-bold text-slate-900 mt-0.5">{r.value}</div>
+            <div className="text-[11px] text-slate-500">{r.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Payment progress across the window */}
+      <div className="mt-5 pt-5 border-t border-slate-100">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Payment rate</div>
+          <div className="text-xs font-bold text-slate-900">{paidPct.toFixed(0)}%</div>
+        </div>
+        <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${paidPct}%` }} />
+        </div>
+        <div className="flex items-center justify-between text-[11px] text-slate-500 mt-2">
+          <span><span className="font-bold text-emerald-700">{paidCount}</span> paid</span>
+          <span><span className="font-bold text-amber-700">{pendingCount}</span> pending</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AreaChart({ buckets, metric, period }: { buckets: TrendBucket[]; metric: 'bookings' | 'revenue'; period: 7 | 30 | 90 }) {
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  // Fixed viewBox — SVG scales responsively.
+  const CHART_W = 720;
+  const CHART_H = 140;
+  const PAD_L = 30;
+  const PAD_R = 10;
+  const PAD_T = 16;
+  const PAD_B = 20;
+  const plotW = CHART_W - PAD_L - PAD_R;
+  const plotH = CHART_H - PAD_T - PAD_B;
+
+  const values = buckets.map(b => (metric === 'bookings' ? b.bookingsCount : b.revenue));
+  const rawMax = Math.max(1, ...values);
+  const niceMax = niceCeil(rawMax);
+  const ticks = [0, niceMax / 2, niceMax];
+
+  const uid = metric;
+  const strokeColor = metric === 'bookings' ? '#0f172a' : '#F27D26';
+  const gradTop = metric === 'bookings' ? 'rgba(15,23,42,0.28)' : 'rgba(242,125,38,0.32)';
+  const gradBottom = metric === 'bookings' ? 'rgba(15,23,42,0)' : 'rgba(242,125,38,0)';
+
+  const points = buckets.map((b, i) => {
+    const v = metric === 'bookings' ? b.bookingsCount : b.revenue;
+    const x = buckets.length === 1
+      ? PAD_L + plotW / 2
+      : PAD_L + (i / (buckets.length - 1)) * plotW;
+    const y = PAD_T + plotH - (v / niceMax) * plotH;
+    return { x, y, v, label: b.label };
+  });
+
+  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const baselineY = PAD_T + plotH;
+  const areaPath = points.length > 0
+    ? `${linePath} L${points[points.length - 1].x.toFixed(1)},${baselineY} L${points[0].x.toFixed(1)},${baselineY} Z`
+    : '';
+
+  const lastPoint = points[points.length - 1];
+  const hover = hoverIdx !== null ? points[hoverIdx] : null;
+  const hoverBucket = hoverIdx !== null ? buckets[hoverIdx] : null;
+
+  const formatTick = (n: number) =>
+    metric === 'bookings' ? Math.round(n).toString() : shortNumber(n);
+
+  const labelStride = period === 30 ? 5 : period === 90 ? 2 : 1;
+
+  return (
+    <svg
+      viewBox={`0 0 ${CHART_W} ${CHART_H}`}
+      className="w-full h-36"
+      preserveAspectRatio="none"
+      role="img"
+      aria-label={`${metric} trend chart`}
+      onMouseLeave={() => setHoverIdx(null)}
+      onMouseMove={e => {
+        const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+        const relX = ((e.clientX - rect.left) / rect.width) * CHART_W;
+        let best = 0;
+        let bestDist = Infinity;
+        points.forEach((p, i) => {
+          const d = Math.abs(p.x - relX);
+          if (d < bestDist) { bestDist = d; best = i; }
+        });
+        setHoverIdx(best);
+      }}
+    >
+      <defs>
+        <linearGradient id={`grad-${uid}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={gradTop} />
+          <stop offset="100%" stopColor={gradBottom} />
+        </linearGradient>
+      </defs>
+
+      {ticks.map((t, i) => {
+        const y = PAD_T + plotH - (t / niceMax) * plotH;
+        return (
+          <g key={i}>
+            <line x1={PAD_L} x2={CHART_W - PAD_R} y1={y} y2={y} stroke="#eef2f6" strokeWidth={1} strokeDasharray={i === 0 ? '' : '2 4'} />
+            <text x={PAD_L - 4} y={y + 3} textAnchor="end" fontSize={9} fill="#94a3b8" fontWeight={700}>
+              {formatTick(t)}
+            </text>
+          </g>
+        );
+      })}
+
+      {areaPath && <path d={areaPath} fill={`url(#grad-${uid})`} />}
+      {linePath && <path d={linePath} fill="none" stroke={strokeColor} strokeWidth={1.75} strokeLinejoin="round" strokeLinecap="round" />}
+
+      {lastPoint && (
+        <circle cx={lastPoint.x} cy={lastPoint.y} r={3.5} fill="#fff" stroke={strokeColor} strokeWidth={2} />
+      )}
+
+      {buckets.map((b, i) => {
+        if (i % labelStride !== 0 && i !== buckets.length - 1) return null;
+        const p = points[i];
+        return (
+          <text key={b.key} x={p.x} y={CHART_H - 6} textAnchor="middle" fontSize={9} fill="#94a3b8" fontWeight={600}>
+            {b.label}
+          </text>
+        );
+      })}
+
+      {hover && hoverBucket && (
+        <g pointerEvents="none">
+          <line x1={hover.x} x2={hover.x} y1={PAD_T} y2={PAD_T + plotH} stroke="#cbd5e1" strokeWidth={1} strokeDasharray="2 3" />
+          <circle cx={hover.x} cy={hover.y} r={4} fill={strokeColor} stroke="#fff" strokeWidth={2} />
+          {(() => {
+            const label = hoverBucket.label;
+            const val = metric === 'bookings' ? hover.v.toString() : formatBaht(hover.v);
+            const text = `${label} · ${val}`;
+            const textW = text.length * 5.5 + 12;
+            let tx = hover.x - textW / 2;
+            if (tx < PAD_L) tx = PAD_L;
+            if (tx + textW > CHART_W - PAD_R) tx = CHART_W - PAD_R - textW;
+            const ty = Math.max(PAD_T, hover.y - 18);
+            return (
+              <g>
+                <rect x={tx} y={ty} width={textW} height={16} rx={4} fill="#0f172a" opacity={0.92} />
+                <text x={tx + textW / 2} y={ty + 11} textAnchor="middle" fontSize={9} fontWeight={700} fill="#fff">
+                  {text}
+                </text>
+              </g>
+            );
+          })()}
+        </g>
+      )}
+    </svg>
+  );
+}
+
+function niceCeil(value: number): number {
+  if (value <= 1) return 1;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(value)));
+  const normalized = value / magnitude;
+  let nice: number;
+  if (normalized <= 1) nice = 1;
+  else if (normalized <= 2) nice = 2;
+  else if (normalized <= 5) nice = 5;
+  else nice = 10;
+  return nice * magnitude;
+}
+
+function shortNumber(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1) + 'M';
+  if (n >= 1_000) return (n / 1_000).toFixed(n >= 10_000 ? 0 : 1) + 'k';
+  return Math.round(n).toString();
 }
 
 // ─── 4. All bookings (existing) ───────────────────────────────────────────────
